@@ -1,0 +1,978 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//Master and other lookup tables
+// Table Organization
+model Organization {
+  organizationId    Int      @id @default(autoincrement())
+  alternateId       String?
+  name              String   @unique
+  address           String?
+  city              String?
+  state             String?
+  zip               String?
+  county            String?
+  countryId         Int?
+  contactPerson     String?
+  phoneNumberOffice String?
+  contactEmail      String?
+  parentId          Int?
+  createdBy         Int?
+  createdDate       DateTime @default(now())
+  modifiedBy        Int?
+  modifiedDate      DateTime @updatedAt
+  isActive          Boolean
+
+  // Relationships
+  facilities           Facility[]
+  userOrganizationMaps UserOrganizationMap[]
+  country              Country?              @relation(fields: [countryId], references: [countryId], onDelete: Cascade)
+
+  @@map("organizations")
+}
+
+// Table Facility
+model Facility {
+  facilityId          Int      @id @default(autoincrement())
+  alternateId         String?
+  organizationId      Int
+  name                String   @unique
+  address             String?
+  city                String?
+  state               String?
+  zip                 String?
+  county              String?
+  countryId           Int?
+  phoneNumberBusiness String?
+  workHours           String?
+  contactPerson       String?
+  contactEmail        String?
+  createdBy           Int?
+  createdDate         DateTime @default(now())
+  modifiedBy          Int?
+  modifiedDate        DateTime @updatedAt
+  isActive            Boolean
+
+  //Relationships
+  Organization               Organization? @relation(fields: [organizationOrganizationId], references: [organizationId])
+  organizationOrganizationId Int?
+
+  @@map("facilities")
+}
+
+//Table Role
+model Role {
+  roleId                Int      @id @default(autoincrement())
+  roleName              String
+  canManageUsers        Boolean
+  canUpdateMasters      Boolean
+  canManageDataEntry    Boolean  @default(false)
+  canManagePatientEntry Boolean  @default(false)
+  canDelete             Boolean  @default(false)
+  createdBy             Int?
+  createdDate           DateTime @default(now())
+  modifiedBy            Int?
+  modifiedDate          DateTime @updatedAt
+  isActive              Boolean
+
+  // Relationships
+  users User[]
+
+  @@map("roles")
+}
+
+//Table User
+model User {
+  userId          Int      @id @default(autoincrement())
+  resourceId      String?
+  roleId          Int
+  firstName       String
+  middleName      String?
+  lastName        String
+  userName        String   @unique
+  email           String   @unique
+  password        String
+  userImageName   String?
+  createdBy       Int?
+  createdDate     DateTime @default(now())
+  modifiedBy      Int?
+  modifiedDate    DateTime @updatedAt
+  isActive        Boolean
+  isAuthenticated Boolean?
+  recoveryCode    String?
+  // tempToken removed — replaced by RefreshToken table (hashed, rotated, expirable)
+
+  // Relationships
+  role                 Role                  @relation(fields: [roleId], references: [roleId], onDelete: Cascade)
+  userprovidermaps     UserProviderMap[]
+  userorganizationmaps UserOrganizationMap[]
+  refreshTokens        RefreshToken[]
+
+  @@map("users")
+}
+
+//Table Insurance
+model Insurance {
+  insuranceId  Int      @id @default(autoincrement())
+  payorName    String?
+  alternateId  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  //Relationships
+  @@map("insurances")
+}
+
+//Table CodeSet
+model CodeSet {
+  codesetId    Int      @id @default(autoincrement())
+  mainGroup    String
+  codesetGroup String
+  codesetType  String
+  code         String
+  description  String?
+  categoryId   Int?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  //Relationships
+  servicerequests         ServiceRequest[]
+  servicerequesthistories ServiceRequestHistory[]
+  CodesetProviderRoleMap  CodesetProviderRoleMap[]
+  ReferralDetails         ReferralDetails[]
+  OrderDetails            OrderDetails[]
+
+  @@map("codesets")
+}
+
+// Table UserProviderMap
+model CodesetProviderRoleMap {
+  mapId          Int          @id @default(autoincrement())
+  providerRoleId Int
+  codesetId      Int
+  createdBy      Int?
+  createdDate    DateTime     @default(now())
+  modifiedBy     Int?
+  modifiedDate   DateTime     @updatedAt
+  isActive       Boolean
+  // Relationships
+  codeset        CodeSet      @relation(fields: [codesetId], references: [codesetId])
+  providerRole   ProviderRole @relation(fields: [providerRoleId], references: [providerRoleId])
+
+  @@map("codesetproviderrolemaps")
+}
+
+//Table Country
+model Country {
+  countryId    Int      @id @default(autoincrement())
+  value        String
+  description  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  organizations Organization[]
+  providers     Provider[]
+
+  @@map("countries")
+}
+
+// Table UserProviderMap
+model UserProviderMap {
+  mapId       Int      @id @default(autoincrement())
+  providerId  Int
+  userId      Int
+  createdBy   Int?
+  createdDate DateTime @default(now())
+  isActive    Boolean
+
+  // Relationships
+  user     User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [providerId], onDelete: Cascade)
+
+  @@map("userprovidermaps")
+}
+
+model UserOrganizationMap {
+  mapId          Int      @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  createdBy      Int?
+  createdDate    DateTime @default(now())
+  isActive       Boolean
+
+  // Relationships
+  user         User         @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+
+  @@map("userorganizationmaps")
+}
+
+//Provider and Provider related tables
+//Table Provider Type
+model ProviderType {
+  typeId       Int      @id @default(autoincrement())
+  value        String
+  description  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  patientproviders PatientProvider[]
+
+  @@map("providertypes")
+}
+
+//Table Provider
+model Provider {
+  providerId        Int      @id @default(autoincrement())
+  npi               String?  @unique
+  alternateId       String?
+  providerName      String
+  primaryTaxonomy   String?
+  credentials       String?
+  address           String?
+  city              String?
+  state             String?
+  countryId         Int?
+  zip               String?
+  emailAddress      String?
+  phonenumberWork   String?
+  phonenumberMobile String?
+  faxnumber         String?
+  providerImageName String?
+  canGenerate       Boolean  @default(false)
+  createdBy         Int?
+  createdDate       DateTime @default(now())
+  modifiedBy        Int?
+  modifiedDate      DateTime @updatedAt
+  isActive          Boolean
+
+  // Relationships
+  patientproviders PatientProvider[]
+  userprovidermaps UserProviderMap[]
+  providerroles    ProviderRole[]
+  country          Country?          @relation(fields: [countryId], references: [countryId], onDelete: Cascade)
+
+  @@map("providers")
+}
+
+//Table ProviderRoleDetail
+model ProviderRoleDetail {
+  codeId       Int      @id @default(autoincrement())
+  value        String
+  description  String
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  providerroles ProviderRole[]
+
+  @@map("providerroledetails")
+}
+
+//Table specialty
+model Specialty {
+  specialtyId  Int      @id @default(autoincrement())
+  value        String
+  description  String
+  codesetType  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  providerroles ProviderRole[]
+
+  @@map("specialties")
+}
+
+//Table ProviderRole
+model ProviderRole {
+  providerRoleId Int      @id @default(autoincrement())
+  alternateId    String?
+  providerId     Int
+  organizationId Int?
+  codeId         Int
+  specialtyId    Int
+  locationId     Int
+  isPreferred    Boolean
+  isEmployed     Boolean
+  isExternal     Boolean  @default(false)
+  createdBy      Int?
+  createdDate    DateTime @default(now())
+  modifiedBy     Int?
+  modifiedDate   DateTime @updatedAt
+  isActive       Boolean
+
+  // Relationships
+  referringproviders     ServiceRequest[]         @relation("referringRole")
+  referredtoproviders    ServiceRequest[]         @relation("referredToRole")
+  referringprovidersh    ServiceRequestHistory[]  @relation("referringRoleH")
+  referredtoprovidersh   ServiceRequestHistory[]  @relation("referredToRoleH")
+  provider               Provider                 @relation(fields: [providerId], references: [providerId], onDelete: Cascade)
+  providerroledetail     ProviderRoleDetail       @relation(fields: [codeId], references: [codeId], onDelete: Cascade)
+  specialty              Specialty                @relation(fields: [specialtyId], references: [specialtyId], onDelete: Cascade)
+  location               Location                 @relation(fields: [locationId], references: [locationId], onDelete: Cascade)
+  CodesetProviderRoleMap CodesetProviderRoleMap[]
+
+  @@map("providerroles")
+}
+
+//Table Provider Location
+model Location {
+  locationId   Int      @id @default(autoincrement())
+  value        String
+  description  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+  address      String?
+  city         String?
+  state        String?
+  countryId    Int?
+  zip          String?
+
+  // Relationships
+  providerroles ProviderRole[]
+
+  @@map("locations")
+}
+
+//Patient and Patient related tables
+//Table Patient
+model Patient {
+  patientId        Int      @id @default(autoincrement())
+  alternateId      String?
+  organizationId   Int?
+  firstName        String?
+  lastName         String?
+  patientImageName String?
+  doNotCall        Boolean  @default(false)
+  createdBy        Int?
+  createdDate      DateTime @default(now())
+  modifiedBy       Int?
+  modifiedDate     DateTime @updatedAt
+  isActive         Boolean
+
+  // Relationships
+  patientproviders        PatientProvider[]
+  patientnotes            PatientNote[]
+  servicerequests         ServiceRequest[]
+  servicerequesthistories ServiceRequestHistory[]
+  patientdocuments        PatientDocument[]
+
+  @@map("patients")
+}
+
+//Table Patient Notes
+model PatientNote {
+  noteId            Int       @id @default(autoincrement())
+  patientId         Int
+  serviceRequestId  Int?
+  noteDate          DateTime?
+  noteDetails       String?
+  sendTo            Int?
+  clearNotification Boolean   @default(true)
+  createdBy         Int?
+  createdDate       DateTime  @default(now())
+  modifiedBy        Int?
+  modifiedDate      DateTime  @updatedAt
+  isActive          Boolean
+
+  // Relationships
+  patient        Patient         @relation(fields: [patientId], references: [patientId], onDelete: Cascade)
+  serviceRequest ServiceRequest? @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+
+  @@map("patientnotes")
+}
+
+//Table Patient PCP
+model PatientProvider {
+  ppId         Int      @id @default(autoincrement())
+  patientId    Int
+  providerId   Int
+  typeId       Int
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  patient      Patient      @relation(fields: [patientId], references: [patientId], onDelete: Cascade)
+  provider     Provider     @relation(fields: [providerId], references: [providerId], onDelete: Cascade)
+  providertype ProviderType @relation(fields: [typeId], references: [typeId], onDelete: Cascade)
+
+  @@map("patientproviders")
+}
+
+// Table Patient Document
+model PatientDocument {
+  documentId       Int      @id @default(autoincrement())
+  patientId        Int
+  serviceRequestId Int?
+  documentName     String
+  relatedTo        String?
+  description      String?
+  typeId           Int?
+  createdBy        Int?
+  createdDate      DateTime @default(now())
+  isActive         Boolean
+  // Relationships
+
+  patient              Patient                @relation(fields: [patientId], references: [patientId], onDelete: Cascade)
+  type                 DocumentType?          @relation(fields: [typeId], references: [typeId])
+  serviceRequest       ServiceRequest?        @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  DocumentVerification DocumentVerification[]
+
+  @@map("patientdocuments")
+}
+
+model DocumentType {
+  typeId       Int      @id @default(autoincrement())
+  description  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  PatientDocument PatientDocument[]
+
+  @@map("documenttypes")
+}
+
+// Table Patient Document
+model DocumentVerification {
+  verificationId   Int      @id @default(autoincrement())
+  documentId       Int
+  serviceRequestId Int
+  isVerified       Boolean
+  documentComment  String
+  createdBy        Int?
+  createdDate      DateTime @default(now())
+  isActive         Boolean
+  // Relationships
+
+  document       PatientDocument @relation(fields: [documentId], references: [documentId], onDelete: Cascade)
+  serviceRequest ServiceRequest  @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+
+  @@map("documentverifications")
+}
+
+//Service Request and Service Request related Tables
+// Table ServiceRequest Status
+model ServiceRequestStatus {
+  statusId     Int      @id @default(autoincrement())
+  value        String
+  description  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  servicerequests         ServiceRequest[]
+  servicerequesthistories ServiceRequestHistory[]
+
+  @@map("servicerequeststatuses")
+}
+
+// Table Task Status
+model TaskStatus {
+  taskStatusId  Int             @id @default(autoincrement())
+  value         String
+  description   String?
+  createdBy     Int?
+  createdDate   DateTime        @default(now())
+  modifiedBy    Int?
+  modifiedDate  DateTime        @updatedAt
+  isActive      Boolean
+  // Relationships
+  tasks         Task[]
+  taskhistories TaskHistory[]
+  StatusRuleSet StatusRuleSet[]
+
+  @@map("taskstatuses")
+}
+
+// Table Task Business Status
+model TaskBusinessStatus {
+  businessStatusId      Int                     @id @default(autoincrement())
+  value                 String
+  description           String?
+  type                  String?
+  createdBy             Int?
+  createdDate           DateTime                @default(now())
+  modifiedBy            Int?
+  modifiedDate          DateTime                @updatedAt
+  isActive              Boolean
+  // Relationships
+  tasks                 Task[]
+  taskhistories         TaskHistory[]
+  StatusRuleSet         StatusRuleSet[]
+  BusinessStatusRuleSet BusinessStatusRuleSet[]
+
+  @@map("taskbusinessstatuses")
+}
+
+//Table Priority
+model Priority {
+  priorityId   Int      @id @default(autoincrement())
+  value        String
+  description  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  servicerequests         ServiceRequest[]
+  servicerequesthistories ServiceRequestHistory[]
+
+  @@map("priorities")
+}
+
+//Table Intents
+model Intent {
+  intentId     Int      @id @default(autoincrement())
+  value        String
+  description  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  servicerequests         ServiceRequest[]
+  servicerequesthistories ServiceRequestHistory[]
+
+  @@map("intents")
+}
+
+//Category
+model Category {
+  categoryId   Int      @id @default(autoincrement())
+  value        String
+  description  String?
+  codesetType  String?
+  createdBy    Int?
+  createdDate  DateTime @default(now())
+  modifiedBy   Int?
+  modifiedDate DateTime @updatedAt
+  isActive     Boolean
+
+  // Relationships
+  @@map("categories")
+}
+
+model ReferralDetails {
+  mapId            Int            @id @default(autoincrement())
+  serviceRequestId Int
+  codesetId        Int
+  createdBy        Int?
+  createdDate      DateTime       @default(now())
+  modifiedBy       Int?
+  modifiedDate     DateTime       @updatedAt
+  isActive         Boolean
+  // Relationships
+  codeset          CodeSet        @relation(fields: [codesetId], references: [codesetId])
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId])
+
+  @@map("referraldetails")
+}
+
+model OrderDetails {
+  mapId            Int            @id @default(autoincrement())
+  serviceRequestId Int
+  codesetId        Int
+  createdBy        Int?
+  createdDate      DateTime       @default(now())
+  modifiedBy       Int?
+  modifiedDate     DateTime       @updatedAt
+  isActive         Boolean
+  // Relationships
+  codeset          CodeSet        @relation(fields: [codesetId], references: [codesetId])
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId])
+
+  @@map("orderdetails")
+}
+
+//Table ServiceRequest
+model ServiceRequest {
+  serviceRequestId      Int       @id @default(autoincrement())
+  serviceRequestDate    DateTime? //Service Request Date : This is app specific. Do not exists in FHIR structure
+  alternateId           String? //Identifier assigned to this Service Request
+  statusId              Int
+  statusDate            DateTime //This is app specific. Do not exists in FHIR structure.
+  intentId              Int
+  priorityId            Int?
+  procedureCodesetId    Int?
+  quantity              Decimal?
+  occuranceDateTime     DateTime? //When Service should occur
+  patientId             Int // subject Field in FHIR Resource
+  authoredOn            DateTime //Date when Service Request was signed
+  referringRoleId       Int? //Requester and Requester Role, Specialty & Location
+  referredToRoleId      Int? //Performer and Performer Role, Specialty & Location
+  externalProviderName  String?
+  externalSpecialtyName String?
+  reason                String? //Diagnosis
+  patientInstruction    String?
+  patientQueryId        Int?
+  coverageQueryId       Int?
+  createdBy             Int?
+  createdDate           DateTime  @default(now())
+  modifiedBy            Int?
+  modifiedDate          DateTime  @updatedAt
+  isActive              Boolean
+
+  // Relationships
+  servicerequesthistories ServiceRequestHistory[]
+  patientnotes            PatientNote[]
+  patientdocuments        PatientDocument[]
+  tasks                   Task[]
+  servicerequeststatus    ServiceRequestStatus    @relation(fields: [statusId], references: [statusId], onDelete: Cascade)
+  intent                  Intent?                 @relation(fields: [intentId], references: [intentId], onDelete: Cascade)
+  priority                Priority?               @relation(fields: [priorityId], references: [priorityId], onDelete: Cascade)
+  patient                 Patient                 @relation(fields: [patientId], references: [patientId], onDelete: Cascade)
+  providerrolereferring   ProviderRole?           @relation("referringRole", fields: [referringRoleId], references: [providerRoleId], onDelete: Cascade)
+  providerolerefferedto   ProviderRole?           @relation("referredToRole", fields: [referredToRoleId], references: [providerRoleId], onDelete: Cascade)
+  codeset                 CodeSet?                @relation(fields: [procedureCodesetId], references: [codesetId], onDelete: Cascade)
+  ServiceRequestLock      ServiceRequestLock[]
+  DocumentVerification    DocumentVerification[]
+  ReferralDetails         ReferralDetails[]
+  OrderDetails            OrderDetails[]
+
+  @@map("servicerequests")
+}
+
+//Table ServiceRequest History
+model ServiceRequestHistory {
+  historyId             Int       @id @default(autoincrement())
+  serviceRequestId      Int
+  serviceRequestDate    DateTime? //Service Request Date : This is app specific. Do not exists in FHIR structure
+  alternateId           String? //Identifier assigned to this Service Request
+  statusId              Int
+  statusDate            DateTime //This is app specific. Do not exists in FHIR structure.
+  intentId              Int
+  priorityId            Int?
+  procedureCodesetId    Int?
+  quantity              Decimal?
+  occuranceDateTime     DateTime? //When Service should occur
+  patientId             Int // subject Field in FHIR Resource
+  authoredOn            DateTime //Date when Service Request was signed
+  referringRoleId       Int? //Requester and Requester Role, Specialty & Location
+  referredToRoleId      Int? //Performer and Performer Role, Specialty & Location
+  externalProviderName  String?
+  externalSpecialtyName String?
+  reason                String? //Diagnosis
+  patientInstruction    String?
+  patientQueryId        Int?
+  coverageQueryId       Int?
+  createdBy             Int?
+  createdDate           DateTime  @default(now())
+  modifiedBy            Int?
+  modifiedDate          DateTime  @updatedAt
+  isActive              Boolean
+
+  // Relationships
+  servicerequest        ServiceRequest        @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  servicerequeststatus  ServiceRequestStatus? @relation(fields: [statusId], references: [statusId], onDelete: Cascade)
+  intent                Intent?               @relation(fields: [intentId], references: [intentId], onDelete: Cascade)
+  priority              Priority?             @relation(fields: [priorityId], references: [priorityId], onDelete: Cascade)
+  patient               Patient               @relation(fields: [patientId], references: [patientId], onDelete: Cascade)
+  providerrolereferring ProviderRole?         @relation("referringRoleH", fields: [referringRoleId], references: [providerRoleId], onDelete: Cascade)
+  providerolerefferedto ProviderRole?         @relation("referredToRoleH", fields: [referredToRoleId], references: [providerRoleId], onDelete: Cascade)
+  codeset               CodeSet?              @relation(fields: [procedureCodesetId], references: [codesetId], onDelete: Cascade)
+
+  @@map("servicerequesthistories")
+}
+
+//Table Tasks
+model Task {
+  taskId            Int       @id @default(autoincrement())
+  serviceRequestId  Int
+  taskStatusId      Int
+  businessStatusId  Int?
+  taskStatusDate    DateTime
+  intentId          Int
+  priorityId        Int?
+  description       String?
+  reasonId          Int?
+  coverageId        String?
+  subscriberId      String?
+  subscriber        String?
+  payor             String?
+  periodStartDate   DateTime?
+  periodEndDate     DateTime?
+  relationShip      String?
+  appointmentDate   DateTime?
+  appointmentTime   String?
+  infoDate          DateTime? //Current Date of message, email or phone call
+  infoComment       String? //Comment or message text for both sending and reciving
+  infoType          String? //Email, Phone  or Message
+  infoTo            String? // Patient, Provider or Payor
+  infoToId          String? //Id of the infoTo
+  isMessageSent     Boolean   @default(false) //Is message sent to infoTo
+  isMessageReceived Boolean   @default(false) //Is message received from infoTo
+  duration          String?
+  alternateId       String?
+  createdBy         Int?
+  createdDate       DateTime  @default(now())
+  modifiedBy        Int?
+  modifiedDate      DateTime  @updatedAt
+  isActive          Boolean
+
+  //Relationships
+  taskhistories      TaskHistory[]
+  servicerequest     ServiceRequest      @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+  taskstatus         TaskStatus          @relation(fields: [taskStatusId], references: [taskStatusId], onDelete: Cascade)
+  taskbusinessstatus TaskBusinessStatus? @relation(fields: [businessStatusId], references: [businessStatusId], onDelete: Cascade)
+  cancelreason       CancellationReason? @relation(fields: [reasonId], references: [cancellationReasonId], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+//Table Tasks
+model TaskHistory {
+  historyId         Int       @id @default(autoincrement())
+  taskId            Int
+  taskStatusId      Int
+  businessStatusId  Int?
+  taskStatusDate    DateTime
+  intentId          Int
+  priorityId        Int?
+  description       String?
+  reasonId          Int?
+  coverageId        String?
+  subscriberId      String?
+  subscriber        String?
+  payor             String?
+  periodStartDate   DateTime?
+  periodEndDate     DateTime?
+  relationShip      String?
+  appointmentDate   DateTime?
+  appointmentTime   String?
+  infoDate          DateTime?
+  infoComment       String?
+  infoType          String?
+  infoTo            String?
+  infoToId          String?
+  isMessageSent     Boolean   @default(false)
+  isMessageReceived Boolean   @default(false)
+  duration          String?
+  alternateId       String?
+  createdBy         Int?
+  createdDate       DateTime  @default(now())
+  modifiedBy        Int?
+  modifiedDate      DateTime  @updatedAt
+  isActive          Boolean
+
+  //Relationships
+  task               Task                @relation(fields: [taskId], references: [taskId], onDelete: Cascade)
+  taskstatus         TaskStatus          @relation(fields: [taskStatusId], references: [taskStatusId], onDelete: Cascade)
+  taskbusinessstatus TaskBusinessStatus? @relation(fields: [businessStatusId], references: [businessStatusId], onDelete: Cascade)
+  cancelreason       CancellationReason? @relation(fields: [reasonId], references: [cancellationReasonId], onDelete: Cascade)
+
+  @@map("taskhistories")
+}
+
+//Table Cancellation Reason
+model CancellationReason {
+  cancellationReasonId Int           @id @default(autoincrement())
+  value                String
+  description          String?
+  createdBy            Int?
+  createdDate          DateTime      @default(now())
+  modifiedBy           Int?
+  modifiedDate         DateTime      @updatedAt
+  isActive             Boolean
+  // Relationships
+  tasks                Task[]
+  taskhistories        TaskHistory[]
+
+  @@map("cancellationreasons")
+}
+
+//Table StatusRuleSets
+model StatusRuleSet {
+  ruleId             Int                 @id @default(autoincrement())
+  workflowId         Int
+  currentStatusId    Int?
+  taskStatusId       Int
+  businessStatusId   Int?
+  //Relationships
+  taskstatus         TaskStatus          @relation(fields: [taskStatusId], references: [taskStatusId], onDelete: Cascade)
+  taskbusinessstatus TaskBusinessStatus? @relation(fields: [businessStatusId], references: [businessStatusId], onDelete: Cascade)
+
+  @@map("statusrulesets")
+}
+
+//Table BusinessStatusRuleSets
+model BusinessStatusRuleSet {
+  ruleId             Int                @id @default(autoincrement())
+  workflowId         Int
+  businessStatusId   Int
+  //Relationships
+  taskbusinessstatus TaskBusinessStatus @relation(fields: [businessStatusId], references: [businessStatusId], onDelete: Cascade)
+
+  @@map("businessstatusrulesets")
+}
+
+model InboundStaging {
+  inboundStagingId Int      @id @default(autoincrement())
+  resourceType     String
+  resourceJson     String
+  loadDate         DateTime @default(now())
+  logMessage       String
+  loadType         Int // 1 for Insert; 2 for Update; 3 for Delete
+  loadStatus       Int // 1 for Not Processed; 2 for Successfully Processed; 3 for Error or Unknown issue 
+
+  @@map("inboundstagings")
+}
+
+model OutboundStaging {
+  outboundStagingId Int      @id @default(autoincrement())
+  resourceType      String
+  resourceId        String
+  resourceJson      String
+  loadDate          DateTime @default(now())
+  logMessage        String
+  loadType          Int // 1 for Insert; 2 for Update; 3 for Delete
+  loadStatus        Int // 1 for Not Processed; 2 for Successfully Processed; 3 for Error or Unknown issue 
+
+  @@map("outboundstagings")
+}
+
+model PrimaryQuery {
+  qId               Int               @id @default(autoincrement())
+  queryName         String
+  serviceRequestQId Int               @unique
+  AssociatedQuery   AssociatedQuery[]
+
+  @@map("primaryqueries")
+}
+
+model AssociatedQuery {
+  id            Int    @id @default(autoincrement())
+  resourceType  String
+  mainQId       Int
+  associatedQId Int
+
+  primaryQuery PrimaryQuery @relation(fields: [mainQId], references: [serviceRequestQId], onDelete: Cascade)
+
+  @@map("associatedqueries")
+}
+
+model ServiceRequestLock {
+  id               Int      @id @default(autoincrement())
+  serviceRequestId Int
+  userId           Int
+  lockDate         DateTime @default(now())
+
+  servicerequest ServiceRequest @relation(fields: [serviceRequestId], references: [serviceRequestId], onDelete: Cascade)
+
+  @@map("servicerequestlocks")
+}
+
+model SMSMappingTable {
+  id               Int     @id @default(autoincrement())
+  serviceRequestId Int
+  patientId        Int
+  taskId           Int
+  phoneNumber      String
+  status           String // Status of the SMS (e.g., WAITING, Completed)
+  message          String? // Message to be sent
+  response         String? // Response from the recipient, if any
+
+  @@map("smsmappingtables")
+}
+
+// ─── Security Tables ──────────────────────────────────────────────────────────
+
+/// Proper refresh token store.
+/// Raw tokens are NEVER stored — only SHA-256 hashes.
+/// Tokens rotate on every use. Revoked tokens cannot be reused.
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique // SHA-256(rawToken) — deterministic, queryable
+  userId    Int
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refreshtokens")
+}
+
+/// JWT revocation list (JTI blacklist).
+/// Populated on logout and refresh. Entries are cleaned up after expiry.
+model TokenRevocation {
+  id        Int      @id @default(autoincrement())
+  jti       String   @unique // JWT ID claim — unique per token
+  userId    Int
+  expiresAt DateTime // Matches JWT exp — safe to purge after this
+  revokedAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("tokenrevocations")
+}
+
+/// HIPAA §164.312(b) — Audit Controls.
+/// Tamper-evident log of every PHI access, auth event, and mutation.
+/// This table must be append-only — no UPDATE or DELETE in application code.
+model AuditLog {
+  id             Int      @id @default(autoincrement())
+  userId         Int?     // Null for unauthenticated failed attempts
+  organizationId Int?
+  action         String   // GET, POST, PATCH, DELETE, LOGIN, LOGOUT, LOGIN_FAILED
+  resource       String   // patient, serviceRequest, document, user, auth
+  resourceId     String?
+  ipAddress      String?
+  userAgent      String?
+  timestamp      DateTime @default(now())
+  details        Json?    // Additional context — never include PHI values here
+
+  @@index([userId, timestamp])
+  @@index([organizationId, timestamp])
+  @@index([resource, resourceId])
+  @@map("auditlogs")
+}

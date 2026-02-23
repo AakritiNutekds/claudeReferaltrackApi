@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  referraltrackapi:
+    container_name: referraltrackapi-gcp
+    build:
+      dockerfile: Dockerfile
+      context: .
+    environment:
+      DATABASE_URL: postgresql://postgres:Noida276@34.46.120.170:5432/ReferralTrackDB  # Updated
+      NODE_ENV: development
+      PORT: 8080
+    ports:
+      - "8080:8080"
+
+# Uncomment this if you want to use a local PostgreSQL database
+# referraltrackapilocalDB:
+#   container_name: dbreferraltrackapi
+#   image: postgres:15
+#   ports:
+#     - 5435:5432
+#   environment:
+#     POSTGRES_USER: postgres
+#     POSTGRES_PASSWORD: 123
+#     POSTGRES_DB: ReferralTrackDB
+#   volumes:
+#     - data:/var/lib/postgresql/data
+
+# volumes:
+#   data:
