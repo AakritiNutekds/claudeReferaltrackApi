@@ -1,7 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class PatientDto {
+
+  // organizationId, createdBy, modifiedBy REMOVED — set exclusively from JWT in service layer.
+  // Accepting these from the request body allowed cross-tenant data injection and audit forgery.
 
   @ApiProperty()
   @IsString()
@@ -19,11 +22,6 @@ export class PatientDto {
   lastName?: string;
 
   @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  organizationId?: number;
-
-  @ApiProperty()
   @IsBoolean()
   @IsNotEmpty()
   doNotCall: boolean;
@@ -32,16 +30,6 @@ export class PatientDto {
   @IsString()
   @IsOptional()
   patientImageName?: string;
-
-  @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  createdBy?: number;
-
-  @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  modifiedBy?: number;
 
   @ApiProperty()
   @IsBoolean()

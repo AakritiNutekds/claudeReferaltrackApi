@@ -23,19 +23,23 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: {
     sub: number;
     email: string;
-    jti?: string;
+    jti: string;           // mandatory — tokens without JTI cannot be revoked
     organizationId?: number;
     exp: number;
   }) {
-    // SECURITY: Check token revocation (JTI blacklist).
-    // Required for logout and refresh rotation to take effect immediately.
-    if (payload.jti) {
-      const revoked = await this.prisma.tokenRevocation.findUnique({
-        where: { jti: payload.jti },
-      });
-      if (revoked) {
-        throw new UnauthorizedException('Token has been revoked');
-      }
+    // SECURITY: JTI is mandatory. A token without jti bypasses the entire revocation
+    // mechanism (logout, refresh rotation). Reject unconditionally if missing.
+    if (!payload.jti) {
+      throw new UnauthorizedException('Missing token identifier');
+    }
+
+    // SECURITY: Revocation check always runs — no conditional branch that can be
+    // bypassed by omitting jti from a crafted token.
+    const revoked = await this.prisma.tokenRevocation.findUnique({
+      where: { jti: payload.jti },
+    });
+    if (revoked) {
+      throw new UnauthorizedException('Token has been revoked');
     }
 
     // SECURITY: Select only the fields needed downstream.

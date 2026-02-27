@@ -68,6 +68,18 @@ async function bootstrap() {
   }
 
   const port = configService.get<number>('PORT') ?? 8080;
+
+  // ── JWT_SECRET Guard ──────────────────────────────────────────────────────
+  // A missing or short secret means all tokens can be forged. Hard-fail at
+  // startup so a misconfigured deployment never silently accepts connections.
+  const jwtSecret = configService.get<string>('JWT_SECRET');
+  if (!jwtSecret || jwtSecret.length < 32) {
+    console.error(
+      'FATAL: JWT_SECRET is missing or shorter than 32 characters. Refusing to start.',
+    );
+    process.exit(1);
+  }
+
   await app.listen(port);
 }
 bootstrap();

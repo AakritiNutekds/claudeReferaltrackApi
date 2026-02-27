@@ -20,9 +20,7 @@ import { JwtGuard, RolesGuard } from '../auth/guard';
 import { GetUser, Roles } from '../auth/decorator';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { patientService } from './patient.service';
-import {
-  PatientDto,
-} from './dto';
+import { PatientDto } from './dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import * as fs from 'fs';
@@ -31,18 +29,18 @@ import * as fs from 'fs';
 @UseGuards(JwtGuard, TenantGuard)
 @Controller('patients')
 export class patientController {
-  constructor(
-    private patientService: patientService,
-  ) { }
+  constructor(private patientService: patientService) {}
 
   @Get()
   getPatients(@GetUser('organizationId') organizationId: number) {
     return this.patientService.getPatients(organizationId);
   }
 
+  // TASK 4: userId sourced from JWT (@GetUser), not from the URL param.
+  // Route path kept intact for backwards-compat; the :id segment is ignored.
   @Get('All/:id')
   getPatientsForUserId(
-    @Param('id', ParseIntPipe) userId: number,
+    @GetUser('userId') userId: number,
     @GetUser('organizationId') organizationId: number,
   ) {
     return this.patientService.getPatientsForUserId(userId, organizationId);
@@ -64,12 +62,15 @@ export class patientController {
     return this.patientService.getPatientByAlternateId(alternateId, organizationId);
   }
 
+  // TASK 2: organizationId now passed to service — image is only served if the
+  // patient belongs to the requesting tenant.
   @Get('getPatientImage/:patientId/image')
   async getPatientImage(
     @Param('patientId', ParseIntPipe) patientId: number,
-    @Res() res: Response, // Include Response in the parameter list
+    @GetUser('organizationId') organizationId: number,
+    @Res() res: Response,
   ): Promise<void> {
-    const filePath = this.patientService.getPatientImageById(patientId);
+    const filePath = await this.patientService.getPatientImageById(patientId, organizationId);
 
     if (!filePath) {
       res.status(404).send('File not found');
@@ -85,47 +86,52 @@ export class patientController {
     }
   }
 
+  // TASK 2+3: organizationId and actorId come from JWT, not request body.
   @Post()
   createPatient(
     @Body() dto: PatientDto,
+    @GetUser('organizationId') organizationId: number,
+    @GetUser('userId') actorId: number,
   ) {
-    return this.patientService.createPatient(
-      dto,
-    );
+    return this.patientService.createPatient(dto, organizationId, actorId);
   }
 
+  // TASK 2+3: organizationId and actorId come from JWT, not request body.
   @Post('createPatientWithImage')
   @UseInterceptors(FileInterceptor('file'))
-  createPatientWithImage(@UploadedFile() file: Express.Multer.File, @Body() dto: { dto }) {
+  createPatientWithImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: { dto },
+    @GetUser('organizationId') organizationId: number,
+    @GetUser('userId') actorId: number,
+  ) {
     const obj = JSON.parse(JSON.stringify(dto.dto));
-    return this.patientService.createPatientWithImage(
-      obj,
-      file
-    );
+    return this.patientService.createPatientWithImage(obj, file, organizationId, actorId);
   }
 
+  // TASK 2+3: organizationId and actorId come from JWT, not request body.
   @Patch(':id')
   editPatientById(
     @Param('id', ParseIntPipe) Id: number,
     @Body() dto: PatientDto,
+    @GetUser('organizationId') organizationId: number,
+    @GetUser('userId') actorId: number,
   ) {
-    return this.patientService.editPatientById(
-      Id,
-      dto,
-    );
+    return this.patientService.editPatientById(Id, dto, organizationId, actorId);
   }
+
+  // TASK 2+3: organizationId and actorId come from JWT, not request body.
   @Patch('editPatientByIdWithImage/:id')
   @UseInterceptors(FileInterceptor('file'))
   editPatientByIdWithImage(
     @Param('id', ParseIntPipe) Id: number,
-    @UploadedFile() file: Express.Multer.File, @Body() dto: { dto }
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: { dto },
+    @GetUser('organizationId') organizationId: number,
+    @GetUser('userId') actorId: number,
   ) {
     const obj = JSON.parse(JSON.stringify(dto.dto));
-    return this.patientService.editPatientByIdWithImage(
-      Id,
-      obj,
-      file
-    );
+    return this.patientService.editPatientByIdWithImage(Id, obj, file, organizationId, actorId);
   }
 
   @Roles('canDelete')
@@ -134,9 +140,8 @@ export class patientController {
   @Delete(':id')
   deletePatientById(
     @Param('id', ParseIntPipe) patientId: number,
+    @GetUser('organizationId') organizationId: number,
   ) {
-    return this.patientService.deletePatientById(
-      patientId,
-    );
+    return this.patientService.deletePatientById(patientId, organizationId);
   }
 }

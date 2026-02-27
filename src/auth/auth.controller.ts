@@ -33,7 +33,10 @@ export class AuthController {
 
   @Post('signup')
   signup(@Body() dto: AuthDto) {
-    return this.authService.signup(dto);
+    // SECURITY: Client-supplied roleId is ignored. Accepting it allowed
+    // self-assignment of any role including admin-level permissions.
+    // Role assignment must go through an authenticated admin flow.
+    return this.authService.signup({ ...dto, roleId: 1 });
   }
 
   /**
